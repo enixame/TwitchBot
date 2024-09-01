@@ -100,10 +100,6 @@ class TwitchBot(commands.Bot):
         if ctx.command:
             await self.handle_commands(message)
         else:
-            # Utilise le ResponseManager pour gérer les réponses automatiques avec correspondance floue
-            # Old code
-            # response = self.response_manager.respond_to_message(message.content, message.author.name, self.nick)
-            
             # Vérifier si le bot doit répondre en fonction des mentions d'utilisateur
             if self.intent_handler.should_respond(message.content):
                 # Utiliser Wit.ai pour détecter l'intention du message
@@ -111,15 +107,13 @@ class TwitchBot(commands.Bot):
         
                 # Générer une réponse en fonction de l'intention détectée
                 response = self.intent_handler.handle_intent(intent, message.author.name)
-            else:
-                response = None
-
-            if response:
-                await message.channel.send(response)
-            elif self.response_manager.detect_game_question(message.content):
-                game_name = self.twitch_api_manager.get_current_game(self.channel_name)
-                await message.channel.send(f"Le jeu actuel est {game_name}." if game_name else "Je ne peux pas déterminer le jeu actuel.")
-
+                
+                # Si une réponse est trouvée, l'envoyer
+                if response:
+                    await message.channel.send(response)
+                elif self.response_manager.detect_game_question(message.content):
+                    game_name = self.twitch_api_manager.get_current_game(self.channel_name)
+                    await message.channel.send(f"Le jeu actuel est {game_name}." if game_name else "Je ne peux pas déterminer le jeu actuel.")
 
     @routines.routine(minutes=20)
     async def joke_task(self):

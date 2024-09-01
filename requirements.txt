@@ -1,0 +1,6 @@
+fuzzywuzzy
+python-dotenv
+python-Levenshtein
+pytest
+requests
+twitchio

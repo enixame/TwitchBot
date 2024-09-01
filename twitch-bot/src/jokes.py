@@ -1,4 +1,4 @@
-# src/jokes
+# src/jokes.py
 
 import requests
 

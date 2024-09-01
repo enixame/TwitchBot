@@ -47,9 +47,9 @@ class GameManager:
         return "Un quiz est déjà en cours!"
 
     def answer_quiz(self, answer):
-        """Gère une réponse dans le quiz."""
+        """Gère une réponse dans le quiz en utilisant la validation floue."""
         if self.quiz_active:
-            if fuzz.ratio(answer.lower(), self.quiz_answer.lower()) > 80:
+            if fuzz.ratio(answer.lower(), self.quiz_answer.lower()) > 80:  # Utilise `fuzz` pour la correspondance floue
                 self.quiz_active = False
                 return f"Bonne réponse! La réponse était bien '{self.quiz_answer}'."
             else:
@@ -64,9 +64,13 @@ class GameManager:
     def play_rps(self, choice):
         """Joue à Pierre-Papier-Ciseaux."""
         valid_choices = ['pierre', 'papier', 'ciseaux']
-        bot_choice = random.choice(valid_choices)
-        result = self.determine_rps_winner(choice.lower(), bot_choice)
-        return f"Tu as choisi {choice}. J'ai choisi {bot_choice}. {result}"
+        best_match = self.get_best_match(choice, valid_choices)
+        if best_match:
+            bot_choice = random.choice(valid_choices)
+            result = self.determine_rps_winner(best_match, bot_choice)
+            return f"Tu as choisi {best_match}. J'ai choisi {bot_choice}. {result}"
+        else:
+            return f"Choix invalide. Choisissez parmi {', '.join(valid_choices)}."
 
     def determine_rps_winner(self, player_choice, bot_choice):
         """Détermine le gagnant de Pierre-Papier-Ciseaux."""
@@ -82,3 +86,14 @@ class GameManager:
             return "C'est un match nul!"
         else:
             return outcomes.get((player_choice, bot_choice), "Je gagne!")
+
+    def get_best_match(self, user_input, valid_choices):
+        """Trouve la meilleure correspondance pour l'entrée utilisateur parmi les choix valides."""
+        best_match = None
+        highest_ratio = 0
+        for choice in valid_choices:
+            ratio = fuzz.ratio(user_input.lower(), choice)
+            if ratio > highest_ratio and ratio > 80:  # Seuil de 80 pour accepter la réponse
+                highest_ratio = ratio
+                best_match = choice
+        return best_match

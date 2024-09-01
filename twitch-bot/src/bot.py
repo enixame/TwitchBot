@@ -5,9 +5,11 @@ from jokes import JokeManager
 from validation import Validator
 from responses import ResponseManager
 from twitch_api import TwitchAPIManager
+from wit_ai_manager import WitAIManager
+from intent_handler import IntentHandler
 
 class TwitchBot(commands.Bot):
-    def __init__(self, token, client_id, nick, prefix, channel):
+    def __init__(self, token, client_id, nick, prefix, channel, wit_ai_token):
         super().__init__(token=token, client_id=client_id, nick=nick, prefix=prefix, initial_channels=[channel])
         self.channel_name = channel
         self.game_manager = GameManager()  # Instance de gestion des jeux
@@ -15,6 +17,8 @@ class TwitchBot(commands.Bot):
         self.validator = Validator()  # Instance de validation des choix
         self.response_manager = ResponseManager()  # Instance de gestion des réponses
         self.twitch_api_manager = TwitchAPIManager(client_id, token)  # Instance de gestion de l'API Twitch
+        self.wit_ai_manager = WitAIManager(wit_ai_token)  # Instance de WitAIManager
+        self.intent_handler = IntentHandler(nick)  # Instance de IntentHandler
 
     @commands.command(name='startgame')
     async def start_game(self, ctx):
@@ -96,13 +100,29 @@ class TwitchBot(commands.Bot):
         if ctx.command:
             await self.handle_commands(message)
         else:
-            # Utilise le ResponseManager pour gérer les réponses automatiques
-            response = self.response_manager.respond_to_message(message.content, message.author.name)
+            # Utilise le ResponseManager pour gérer les réponses automatiques avec correspondance floue
+            # Old code
+            # response = self.response_manager.respond_to_message(message.content, message.author.name, self.nick)
+
+            # Utiliser Wit.ai pour détecter l'intention du message
+            intent = self.wit_ai_manager.detect_intent(message.content)
+
+            # Vérifier si le bot doit répondre en fonction des mentions d'utilisateur
+            if self.intent_handler.should_respond(message.content):
+                # Utiliser Wit.ai pour détecter l'intention du message
+                intent = self.wit_ai_manager.detect_intent(message.content)
+        
+                # Générer une réponse en fonction de l'intention détectée
+                response = self.intent_handler.handle_intent(intent, message.author.name)
+            else:
+                response = None
+
             if response:
                 await message.channel.send(response)
             elif self.response_manager.detect_game_question(message.content):
                 game_name = self.twitch_api_manager.get_current_game(self.channel_name)
                 await message.channel.send(f"Le jeu actuel est {game_name}." if game_name else "Je ne peux pas déterminer le jeu actuel.")
+
 
     @routines.routine(minutes=20)
     async def joke_task(self):
@@ -118,8 +138,9 @@ def main():
     nick = config.BOT_NAME
     prefix = '!'
     channel = config.CHANNEL_NAME
+    wit_ai_token = config.WIT_AI_TOKEN
 
-    bot = TwitchBot(token=token, client_id=client_id, nick=nick, prefix=prefix, channel=channel)
+    bot = TwitchBot(token=token, client_id=client_id, nick=nick, prefix=prefix, channel=channel, wit_ai_token=wit_ai_token)
     bot.run()
 
 if __name__ == "__main__":

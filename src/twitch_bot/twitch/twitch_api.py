@@ -1,4 +1,4 @@
-# src/twitch_api.py
+# twitch_api.py
 
 import requests
 

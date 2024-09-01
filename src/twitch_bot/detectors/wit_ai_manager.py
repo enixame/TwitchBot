@@ -1,8 +1,9 @@
-# src/wait_ai_manager
+# wit_ai_manager.py
 
 import requests
+from twitch_bot.intents.intent_detector import IntentDetector
 
-class WitAIManager:
+class WitAIManager(IntentDetector):
     def __init__(self, wit_ai_token):
         self.wit_ai_token = wit_ai_token
 

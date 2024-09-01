@@ -1,15 +1,17 @@
 from twitchio.ext import commands, routines
-import config
-from games import GameManager
-from jokes import JokeManager
-from validation import Validator
-from responses import ResponseManager
-from twitch_api import TwitchAPIManager
-from wit_ai_manager import WitAIManager
-from intent_handler import IntentHandler
+from twitch_bot.config import config
+from twitch_bot.game.games import GameManager
+from twitch_bot.jokes.jokes import JokeManager
+from twitch_bot.validation.validation import Validator
+from twitch_bot.responses.responses import ResponseManager
+from twitch_bot.twitch.twitch_api import TwitchAPIManager
+from twitch_bot.detectors.wit_ai_manager import WitAIManager
+from twitch_bot.intents.intent_handler import IntentHandler
+from twitch_bot.intents.intent_detector import IntentDetector
+from twitch_bot.intents.intent_handlers import handle_greetings, handle_status, handle_identity, handle_game, handle_bad
 
 class TwitchBot(commands.Bot):
-    def __init__(self, token, client_id, nick, prefix, channel, wit_ai_token):
+    def __init__(self, token, client_id, nick, prefix, channel, intent_detector: IntentDetector):
         super().__init__(token=token, client_id=client_id, nick=nick, prefix=prefix, initial_channels=[channel])
         self.channel_name = channel
         self.game_manager = GameManager()  # Instance de gestion des jeux
@@ -17,8 +19,19 @@ class TwitchBot(commands.Bot):
         self.validator = Validator()  # Instance de validation des choix
         self.response_manager = ResponseManager()  # Instance de gestion des réponses
         self.twitch_api_manager = TwitchAPIManager(client_id, token)  # Instance de gestion de l'API Twitch
-        self.wit_ai_manager = WitAIManager(wit_ai_token)  # Instance de WitAIManager
-        self.intent_handler = IntentHandler(nick)  # Instance de IntentHandler
+        
+        # Définir le gestionnaire d'intentions avec les fonctions de rappel
+        intent_handlers = {
+            'greetings': handle_greetings,
+            'status': handle_status,
+            'identity': handle_identity,
+            'game': handle_game,
+            'bad': handle_bad
+            # Ajoute d'autres intentions et leurs gestionnaires ici
+        }
+
+        self.intent_handler = IntentHandler(nick, intent_handlers)  # Instance de IntentHandler avec callbacks
+        self.intent_detector = intent_detector  # Instance de IntentDetector (flexible)
 
     @commands.command(name='startgame')
     async def start_game(self, ctx):
@@ -102,8 +115,8 @@ class TwitchBot(commands.Bot):
         else:
             # Vérifier si le bot doit répondre en fonction des mentions d'utilisateur
             if self.intent_handler.should_respond(message.content):
-                # Utiliser Wit.ai pour détecter l'intention du message
-                intent = self.wit_ai_manager.detect_intent(message.content)
+                # Utiliser le détecteur d'intention pour détecter l'intention du message
+                intent = self.intent_detector.detect_intent(message.content)
         
                 # Générer une réponse en fonction de l'intention détectée
                 response = self.intent_handler.handle_intent(intent, message.author.name)
@@ -130,8 +143,13 @@ def main():
     prefix = '!'
     channel = config.CHANNEL_NAME
     wit_ai_token = config.WIT_AI_TOKEN
+    # Choisir le détecteur d'intention (WitAI par défaut)
+    intent_detector = WitAIManager(wit_ai_token)
+    # Si tu veux utiliser OpenAI, par exemple :
+    # openai_api_key = config.OPENAI_API_KEY
+    # intent_detector = OpenAIIntentDetector(openai_api_key)
 
-    bot = TwitchBot(token=token, client_id=client_id, nick=nick, prefix=prefix, channel=channel, wit_ai_token=wit_ai_token)
+    bot = TwitchBot(token=token, client_id=client_id, nick=nick, prefix=prefix, channel=channel, intent_detector=intent_detector)
     bot.run()
 
 if __name__ == "__main__":

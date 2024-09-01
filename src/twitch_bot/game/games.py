@@ -1,4 +1,4 @@
-# src/games.py
+# games.py
 
 import random
 from fuzzywuzzy import fuzz

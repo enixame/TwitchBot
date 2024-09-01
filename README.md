@@ -5,22 +5,24 @@ My twitch bot
 
 From workspace directory.
 
-> workspace/
-> │
-> ├── src/
-> │   └── twitch_bot/
-> │       ├── config/
-> │       ├── intents/
-> │       ├── detectors/
-> │       ├── game/
-> │       ├── jokes/
-> │       ├── responses/
-> │       ├── twitch/
-> │       ├── validation/
-> │       └── bot.py
-> │
-> ├── requirements.txt
-> └── README.md
+<pre>
+workspace/ <br />
+│<br />
+├── src/<br />
+│   └── twitch_bot/<br />
+│       ├── config/<br />
+│       ├── intents/<br />
+│       ├── detectors/<br />
+│       ├── game/<br />
+│       ├── jokes/<br />
+│       ├── responses/<br />
+│       ├── twitch/<br />
+│       ├── validation/<br />
+│       └── bot.py<br />
+│<br />
+├── requirements.txt<br />
+└── README.md<br />
+</pre>
 
 commands:
 ```

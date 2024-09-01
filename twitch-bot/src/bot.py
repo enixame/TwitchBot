@@ -103,10 +103,7 @@ class TwitchBot(commands.Bot):
             # Utilise le ResponseManager pour gérer les réponses automatiques avec correspondance floue
             # Old code
             # response = self.response_manager.respond_to_message(message.content, message.author.name, self.nick)
-
-            # Utiliser Wit.ai pour détecter l'intention du message
-            intent = self.wit_ai_manager.detect_intent(message.content)
-
+            
             # Vérifier si le bot doit répondre en fonction des mentions d'utilisateur
             if self.intent_handler.should_respond(message.content):
                 # Utiliser Wit.ai pour détecter l'intention du message

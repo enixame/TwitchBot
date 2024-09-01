@@ -1,7 +1,7 @@
-# src/responses.py
+# responses.py
 # old version
 
-from validation import Validator
+from twitch_bot.validation.validation import Validator
 
 class ResponseManager:
     def __init__(self):

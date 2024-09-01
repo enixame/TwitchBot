@@ -1,132 +1,126 @@
-import requests
 from twitchio.ext import commands, routines
-from fuzzywuzzy import fuzz
-import re
 import config
+from games import GameManager
+from jokes import JokeManager
+from validation import Validator
+from responses import ResponseManager
+from twitch_api import TwitchAPIManager
 
 class TwitchBot(commands.Bot):
     def __init__(self, token, client_id, nick, prefix, channel):
         super().__init__(token=token, client_id=client_id, nick=nick, prefix=prefix, initial_channels=[channel])
         self.channel_name = channel
+        self.game_manager = GameManager()  # Instance de gestion des jeux
+        self.joke_manager = JokeManager()  # Instance de gestion des blagues
+        self.validator = Validator()  # Instance de validation des choix
+        self.response_manager = ResponseManager()  # Instance de gestion des réponses
+        self.twitch_api_manager = TwitchAPIManager(client_id, token)  # Instance de gestion de l'API Twitch
 
-    def generate_joke(self):
-        api_key = config.OPENAI_API_KEY  # Utilise la clé API OpenAI depuis .env
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
-        }
-        data = {
-            "model": "text-davinci-003",  # Ou un autre modèle disponible
-            "prompt": "Tell me a funny joke in French.",
-            "max_tokens": 50  # Limite le nombre de tokens pour éviter des réponses trop longues
-        }
-        
-        response = requests.post("https://api.openai.com/v1/completions", headers=headers, json=data)
-        joke = response.json()["choices"][0]["text"].strip()
-        return joke
+    @commands.command(name='startgame')
+    async def start_game(self, ctx):
+        """Commande pour démarrer le jeu de deviner le nombre."""
+        message = self.game_manager.start_number_game()
+        await ctx.send(message)
 
-    def get_current_game(self):
-        client_id = config.CLIENT_ID  # Utilise le Client ID depuis .env
-        access_token = config.OAUTH_TOKEN.replace('oauth:', '')  # Utilise le token OAuth depuis .env
+    @commands.command(name='guess')
+    async def guess_number(self, ctx, guess: int):
+        """Commande pour deviner le nombre."""
+        message = self.game_manager.guess_number(guess)
+        await ctx.send(message)
 
-        headers = {
-            'Client-ID': client_id,
-            'Authorization': f'Bearer {access_token}'
-        }
+    @commands.command(name='quiz')
+    async def start_quiz(self, ctx):
+        """Commande pour démarrer un quiz de culture générale."""
+        message = self.game_manager.start_quiz()
+        await ctx.send(message)
 
-        response = requests.get('https://api.twitch.tv/helix/streams', headers=headers, params={'user_login': self.channel_name})
-        data = response.json()
-        
-        if data['data']:
-            game_id = data['data'][0]['game_id']
-            game_response = requests.get(f'https://api.twitch.tv/helix/games?id={game_id}', headers=headers)
-            game_data = game_response.json()
-            
-            if game_data['data']:
-                game_name = game_data['data'][0]['name']
-                return game_name
-        return None
+    @commands.command(name='answer')
+    async def answer_quiz(self, ctx, *, answer: str):
+        """Commande pour répondre à la question de quiz."""
+        message = self.game_manager.answer_quiz(answer)
+        await ctx.send(message)
 
-    def detect_game_question(self, message_content):
-        patterns = [
-            r'\bquel est le jeu\b', r'\bc\'est quoi le jeu\b', r'\bjeu actuel\b',
-            r'\bquel jeu\b', r'\bà quel jeu joues-tu\b', r'\bquel est ce jeu\b'
-        ]
-        
-        for pattern in patterns:
-            if re.search(pattern, message_content, re.IGNORECASE):
-                return True
+    @commands.command(name='score')
+    async def show_score(self, ctx):
+        """Commande pour afficher le score actuel des joueurs."""
+        message = self.game_manager.show_scores()
+        await ctx.send(message)
 
-        game_questions = [
-            "quel est le jeu", "c'est quoi le jeu", "jeu actuel", "quel jeu", 
-            "à quel jeu joues-tu", "quel est ce jeu"
-        ]
-        
-        for question in game_questions:
-            if fuzz.partial_ratio(question.lower(), message_content.lower()) > 80:
-                return True
-        
-        return False
+    @commands.command(name='rps')
+    async def play_rps(self, ctx, choice: str):
+        """Commande pour jouer à Pierre-Papier-Ciseaux."""
+        valid_choices = ['pierre', 'papier', 'ciseaux']
+        user_choice = self.validator.validate_choice(choice, valid_choices)
+        if user_choice is None:
+            await ctx.send(f"Choix invalide. Choisissez parmi {', '.join(valid_choices)}.")
+            return
 
-    def detect_greeting(self, message_content):
-        patterns = [
-            r'\bsalut\b', r'\bbonjour\b', r'\bhey\b', r'\bcoucou\b',
-            r'\bcomment ça va\b', r'\bça va\b', r'\bcomment vas-tu\b',
-            r'\bla forme\b', r'\bcomment te sens-tu\b'
-        ]
+        message = self.game_manager.play_rps(user_choice)
+        await ctx.send(message)
 
-        for pattern in patterns:
-            if re.search(pattern, message_content, re.IGNORECASE):
-                return True
+    @commands.command(name='bet')
+    async def place_bet(self, ctx, choice: str, amount: int):
+        """Commande pour placer un pari."""
+        await ctx.send(f"{ctx.author.name} a placé un pari de {amount} points sur {choice}!")
 
-        common_phrases = [
-            "salut", "bonjour", "hey", "coucou", "comment ça va", "ça va", 
-            "comment vas-tu", "la forme", "comment te sens-tu"
-        ]
-
-        for phrase in common_phrases:
-            if fuzz.partial_ratio(phrase.lower(), message_content.lower()) > 80:
-                return True
-        
-        return False
-
-    @routines.routine(minutes=20)
-    async def joke_task(self):
-        joke = self.generate_joke()
-        channel = self.get_channel(self.channel_name)
-        if channel:
-            await channel.send(joke)
+    @commands.command(name='help')
+    async def help_command(self, ctx):
+        """Commande pour afficher la liste des commandes disponibles."""
+        help_message = (
+            "!startgame - Commence un nouveau jeu pour deviner le nombre.\n"
+            "!guess <nombre> - Devine le nombre pour le jeu en cours.\n"
+            "!quiz - Démarre un quiz de culture générale.\n"
+            "!answer <réponse> - Répond à la question du quiz.\n"
+            "!score - Affiche les scores actuels des joueurs.\n"
+            "!rps <choix> - Joue à Pierre-Papier-Ciseaux contre le bot. Choisissez parmi pierre, papier, ciseaux.\n"
+            "!bet <choix> <montant> - Place un pari sur un événement.\n"
+            "!help - Affiche ce message d'aide."
+        )
+        await ctx.send(help_message)
 
     async def event_ready(self):
         print(f'Logged in as | {self.nick}')
         print(f'User id is | {self.user_id}')
-        
-        # Démarre la tâche d'envoi de blagues lorsque le bot est prêt
-        self.joke_task.start()  # Pas besoin de vérifier si la tâche est en cours d'exécution
+        self.joke_task.start()
 
     async def event_message(self, message):
+        if message.author is None or message.author.name is None:
+            return
 
-        # Ignore les messages du bot lui-même
         if message.author.name.lower() == self.nick.lower():
-           return
+            return
 
-        if self.detect_greeting(message.content):
-            await message.channel.send(f"Salut {message.author.name}, ça va bien, et toi ?")
-        elif self.detect_game_question(message.content):
-            game_name = self.get_current_game()
-            if game_name:
-                await message.channel.send(f"Le jeu actuel est '{game_name}'.")
-            else:
-                await message.channel.send("Désolé, je n'ai pas pu récupérer le jeu actuellement diffusé.")
-        
-        await self.handle_commands(message)
+        ctx = await self.get_context(message)
 
-if __name__ == "__main__":
-    token = config.OAUTH_TOKEN  # Utilise le token OAuth depuis .env
-    client_id = config.CLIENT_ID()  # Utilise le Client ID depuis .env
-    nick = config.BOT_NAME  # Utilise le nom du bot depuis .env
-    prefix = '!'  # Préfixe pour les commandes
-    channel = config.CHANNEL_NAME  # Utilise le nom de la chaîne depuis .env
+        # Vérifie si le message est une commande
+        if ctx.command:
+            await self.handle_commands(message)
+        else:
+            # Utilise le ResponseManager pour gérer les réponses automatiques
+            response = self.response_manager.respond_to_message(message.content, message.author.name)
+            if response:
+                await message.channel.send(response)
+            elif self.response_manager.detect_game_question(message.content):
+                game_name = self.twitch_api_manager.get_current_game(self.channel_name)
+                await message.channel.send(f"Le jeu actuel est {game_name}." if game_name else "Je ne peux pas déterminer le jeu actuel.")
+
+    @routines.routine(minutes=20)
+    async def joke_task(self):
+        joke = self.joke_manager.get_joke()
+        channel = self.get_channel(self.channel_name)
+        if channel:
+            await channel.send(joke)
+
+def main():
+    """Fonction principale pour démarrer le bot Twitch."""
+    token = config.OAUTH_TOKEN
+    client_id = config.CLIENT_ID
+    nick = config.BOT_NAME
+    prefix = '!'
+    channel = config.CHANNEL_NAME
 
     bot = TwitchBot(token=token, client_id=client_id, nick=nick, prefix=prefix, channel=channel)
     bot.run()
+
+if __name__ == "__main__":
+    main()

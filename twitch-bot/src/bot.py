@@ -2,11 +2,7 @@ import requests
 from twitchio.ext import commands, routines
 from fuzzywuzzy import fuzz
 import re
-import os
-from dotenv import load_dotenv
-
-# Charger les variables d'environnement depuis le fichier .env
-load_dotenv()
+import config
 
 class TwitchBot(commands.Bot):
     def __init__(self, token, client_id, nick, prefix, channel):
@@ -14,7 +10,7 @@ class TwitchBot(commands.Bot):
         self.channel_name = channel
 
     def generate_joke(self):
-        api_key = os.getenv("OPENAI_API_KEY")  # Utilise la clé API OpenAI depuis .env
+        api_key = config.OPENAI_API_KEY  # Utilise la clé API OpenAI depuis .env
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
@@ -30,8 +26,8 @@ class TwitchBot(commands.Bot):
         return joke
 
     def get_current_game(self):
-        client_id = os.getenv('CLIENT_ID')  # Utilise le Client ID depuis .env
-        access_token = os.getenv('OAUTH_TOKEN').replace('oauth:', '')  # Utilise le token OAuth depuis .env
+        client_id = config.CLIENT_ID  # Utilise le Client ID depuis .env
+        access_token = config.OAUTH_TOKEN.replace('oauth:', '')  # Utilise le token OAuth depuis .env
 
         headers = {
             'Client-ID': client_id,
@@ -126,11 +122,11 @@ class TwitchBot(commands.Bot):
         await self.handle_commands(message)
 
 if __name__ == "__main__":
-    token = os.getenv('OAUTH_TOKEN')  # Utilise le token OAuth depuis .env
-    client_id = os.getenv('CLIENT_ID')  # Utilise le Client ID depuis .env
-    nick = os.getenv('BOT_NAME')  # Utilise le nom du bot depuis .env
+    token = config.OAUTH_TOKEN  # Utilise le token OAuth depuis .env
+    client_id = config.CLIENT_ID()  # Utilise le Client ID depuis .env
+    nick = config.BOT_NAME  # Utilise le nom du bot depuis .env
     prefix = '!'  # Préfixe pour les commandes
-    channel = os.getenv('CHANNEL_NAME')  # Utilise le nom de la chaîne depuis .env
+    channel = config.CHANNEL_NAME  # Utilise le nom de la chaîne depuis .env
 
     bot = TwitchBot(token=token, client_id=client_id, nick=nick, prefix=prefix, channel=channel)
     bot.run()

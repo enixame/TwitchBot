@@ -1,7 +1,6 @@
-# src/twitch_api
+# src/twitch_api.py
 
 import requests
-import config
 
 class TwitchAPIManager:
     def __init__(self, client_id, oauth_token):

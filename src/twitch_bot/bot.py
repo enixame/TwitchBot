@@ -42,26 +42,36 @@ class TwitchBot(commands.Bot):
     @commands.command(name='guess')
     async def guess_number(self, ctx, guess: int):
         """Commande pour deviner le nombre."""
-        message = self.game_manager.guess_number(guess)
+        user_name = ctx.author.name  # Récupère le nom de l'utilisateur qui a envoyé la commande
+        message = self.game_manager.guess_number(guess, user_name)
         await ctx.send(message)
 
     @commands.command(name='quiz')
-    async def start_quiz(self, ctx):
-        """Commande pour démarrer un quiz de culture générale."""
-        message = self.game_manager.start_quiz()
+    async def start_quiz(self, ctx, difficulty: str = 'medium'):
+        """Commande pour démarrer un quiz avec une difficulté optionnelle."""
+        message = self.game_manager.start_quiz(difficulty=difficulty)
         await ctx.send(message)
 
     @commands.command(name='answer')
     async def answer_quiz(self, ctx, *, answer: str):
         """Commande pour répondre à la question de quiz."""
-        message = self.game_manager.answer_quiz(answer)
+        user_name = ctx.author.name  # Récupère le nom de l'utilisateur qui a envoyé la commande
+        message = self.game_manager.answer_quiz(answer, user_name)
+        await ctx.send(message)
+    
+    @commands.command(name='resetquiz')
+    async def reset_quiz_command(self, ctx):
+        """Commande pour réinitialiser le quiz actuel."""
+        message = self.game_manager.reset_quiz()  # Appelle reset_quiz et obtient le message à envoyer
         await ctx.send(message)
 
     @commands.command(name='score')
     async def show_score(self, ctx):
         """Commande pour afficher le score actuel des joueurs."""
         message = self.game_manager.show_scores()
-        await ctx.send(message)
+        # Sépare le message en lignes et envoie chaque ligne séparément
+        for line in message.split('\n'):
+            await ctx.send(line)
 
     @commands.command(name='rps')
     async def play_rps(self, ctx, choice: str):
@@ -86,14 +96,17 @@ class TwitchBot(commands.Bot):
         help_message = (
             "!startgame - Commence un nouveau jeu pour deviner le nombre.\n"
             "!guess <nombre> - Devine le nombre pour le jeu en cours.\n"
-            "!quiz - Démarre un quiz de culture générale.\n"
+            "!quiz <difficulté> - Démarre un quiz de culture générale. Choisissez parmi easy, medium, hard (par défaut: medium).\n"
+            "!resetquiz - Réinitialise le quiz actuel \n"
             "!answer <réponse> - Répond à la question du quiz.\n"
             "!score - Affiche les scores actuels des joueurs.\n"
             "!rps <choix> - Joue à Pierre-Papier-Ciseaux contre le bot. Choisissez parmi pierre, papier, ciseaux.\n"
             "!bet <choix> <montant> - Place un pari sur un événement.\n"
             "!help - Affiche ce message d'aide."
         )
-        await ctx.send(help_message)
+        # Sépare le message en lignes et envoie chaque ligne séparément
+        for line in help_message.split('\n'):
+            await ctx.send(line)
 
     async def event_ready(self):
         print(f'Logged in as | {self.nick}')

@@ -8,7 +8,7 @@ from twitch_bot.twitch.twitch_api import TwitchAPIManager
 from twitch_bot.detectors.wit_ai_manager import WitAIManager
 from twitch_bot.intents.intent_handler import IntentHandler
 from twitch_bot.intents.intent_detector import IntentDetector
-from twitch_bot.intents.intent_handlers import handle_greetings, handle_status, handle_identity, handle_game, handle_bad
+from twitch_bot.intents.intent_handlers import handle_greetings, handle_status, handle_nothing, handle_congrats, handle_ask, handle_bad, handle_backseat
 
 class TwitchBot(commands.Bot):
     def __init__(self, token, client_id, nick, prefix, channel, intent_detector: IntentDetector):
@@ -23,10 +23,14 @@ class TwitchBot(commands.Bot):
         # Définir le gestionnaire d'intentions avec les fonctions de rappel
         intent_handlers = {
             'greetings': handle_greetings,
-            'status': handle_status,
-            'identity': handle_identity,
-            'game': handle_game,
-            'bad': handle_bad
+            'health_status': handle_status,
+            'bad': handle_bad,
+            'backseat': handle_backseat,
+            'ask': handle_ask,
+            'congrats': handle_congrats,
+            'common_confirmation': handle_nothing,
+            'common': handle_nothing
+
             # Ajoute d'autres intentions et leurs gestionnaires ici
         }
 

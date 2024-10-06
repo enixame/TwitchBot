@@ -25,14 +25,16 @@ class QuizManager:
         response = requests.get(self.api_url, params=params)
         data = response.json()
 
+        print(f"Quiz: {data}")
+
         if data['response_code'] == 0:  # Succès
             question_data = data['results'][0]
             self.current_question = html.unescape(question_data['question'])  # Décoder les entités HTML
-            correct_answer  = html.unescape(question_data['correct_answer'])  # Décoder les entités HTML
+            self.correct_answer  = html.unescape(question_data['correct_answer'])  # Décoder les entités HTML
             incorrect_answers = [html.unescape(ans) for ans in question_data['incorrect_answers']]  # Décoder les entités HTML
 
             # Combine la réponse correcte et les réponses incorrectes dans une liste unique
-            options = incorrect_answers + [correct_answer]
+            options = incorrect_answers + [self.correct_answer]
 
             # Mélange la liste pour positionner la réponse correcte de manière aléatoire
             random.shuffle(options)

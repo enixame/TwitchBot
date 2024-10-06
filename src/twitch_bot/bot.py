@@ -5,20 +5,21 @@ from twitch_bot.jokes.jokes import JokeManager
 from twitch_bot.validation.validation import Validator
 from twitch_bot.responses.responses import ResponseManager
 from twitch_bot.twitch.twitch_api import TwitchAPIManager
+from twitch_bot.twitch.twitch_utils import split_message
 from twitch_bot.detectors.wit_ai_manager import WitAIManager
 from twitch_bot.intents.intent_handler import IntentHandler
 from twitch_bot.intents.intent_detector import IntentDetector
 from twitch_bot.intents.intent_handlers import handle_greetings, handle_status, handle_nothing, handle_congrats, handle_ask, handle_bad, handle_backseat
 
 class TwitchBot(commands.Bot):
-    def __init__(self, token, client_id, nick, prefix, channel, intent_detector: IntentDetector):
+    def __init__(self, token, client_id, channel_id, channel_secret, nick, prefix, channel, intent_detector: IntentDetector):
         super().__init__(token=token, client_id=client_id, nick=nick, prefix=prefix, initial_channels=[channel])
         self.channel_name = channel
         self.game_manager = GameManager()  # Instance de gestion des jeux
         self.joke_manager = JokeManager()  # Instance de gestion des blagues
         self.validator = Validator()  # Instance de validation des choix
         self.response_manager = ResponseManager()  # Instance de gestion des réponses
-        self.twitch_api_manager = TwitchAPIManager(client_id, token)  # Instance de gestion de l'API Twitch
+        self.twitch_api_manager = TwitchAPIManager(channel_id, channel_secret)  # Instance de gestion de l'API Twitch
         
         # Définir le gestionnaire d'intentions avec les fonctions de rappel
         intent_handlers = {
@@ -37,11 +38,13 @@ class TwitchBot(commands.Bot):
         self.intent_handler = IntentHandler(nick, intent_handlers)  # Instance de IntentHandler avec callbacks
         self.intent_detector = intent_detector  # Instance de IntentDetector (flexible)
 
+
     @commands.command(name='startgame')
     async def start_game(self, ctx):
         """Commande pour démarrer le jeu de deviner le nombre."""
         message = self.game_manager.start_number_game()
         await ctx.send(message)
+
 
     @commands.command(name='guess')
     async def guess_number(self, ctx, guess: int):
@@ -50,11 +53,13 @@ class TwitchBot(commands.Bot):
         message = self.game_manager.guess_number(guess, user_name)
         await ctx.send(message)
 
+
     @commands.command(name='quiz')
     async def start_quiz(self, ctx, difficulty: str = 'medium'):
         """Commande pour démarrer un quiz avec une difficulté optionnelle."""
         message = self.game_manager.start_quiz(difficulty=difficulty)
         await ctx.send(message)
+
 
     @commands.command(name='answer')
     async def answer_quiz(self, ctx, *, answer: str):
@@ -63,11 +68,13 @@ class TwitchBot(commands.Bot):
         message = self.game_manager.answer_quiz(answer, user_name)
         await ctx.send(message)
     
+
     @commands.command(name='resetquiz')
     async def reset_quiz_command(self, ctx):
         """Commande pour réinitialiser le quiz actuel."""
         message = self.game_manager.reset_quiz()  # Appelle reset_quiz et obtient le message à envoyer
         await ctx.send(message)
+
 
     @commands.command(name='score')
     async def show_score(self, ctx):
@@ -76,6 +83,7 @@ class TwitchBot(commands.Bot):
         # Sépare le message en lignes et envoie chaque ligne séparément
         for line in message.split('\n'):
             await ctx.send(line)
+
 
     @commands.command(name='rps')
     async def play_rps(self, ctx, choice: str):
@@ -89,10 +97,27 @@ class TwitchBot(commands.Bot):
         message = self.game_manager.play_rps(user_choice)
         await ctx.send(message)
 
+
     @commands.command(name='bet')
     async def place_bet(self, ctx, choice: str, amount: int):
         """Commande pour placer un pari."""
         await ctx.send(f"{ctx.author.name} a placé un pari de {amount} points sur {choice}!")
+
+
+    @commands.command(name='game')
+    async def get_game(self, ctx):
+       # Récupère les détails du jeu via votre fonction Twitch API
+        game_details = self.twitch_api_manager.get_current_game(self.channel_name)
+
+        if game_details:
+            # Pour chaque ligne dans le tableau game_details, la découper en morceaux de 500 caractères max
+            for detail in game_details:
+                messages = split_message(detail)
+                for message in messages:
+                    await ctx.send(message)
+        else:
+            await ctx.send("Je ne peux pas déterminer le jeu actuel.")
+
 
     @commands.command(name='help')
     async def help_command(self, ctx):
@@ -106,16 +131,19 @@ class TwitchBot(commands.Bot):
             "!score - Affiche les scores actuels des joueurs.\n"
             "!rps <choix> - Joue à Pierre-Papier-Ciseaux contre le bot. Choisissez parmi pierre, papier, ciseaux.\n"
             "!bet <choix> <montant> - Place un pari sur un événement.\n"
+            "!game - Affiche le jeu actuel.\n"
             "!help - Affiche ce message d'aide."
         )
         # Sépare le message en lignes et envoie chaque ligne séparément
         for line in help_message.split('\n'):
             await ctx.send(line)
 
+
     async def event_ready(self):
         print(f'Logged in as | {self.nick}')
         print(f'User id is | {self.user_id}')
         self.joke_task.start()
+
 
     async def event_message(self, message):
         if message.author is None or message.author.name is None:
@@ -141,9 +169,7 @@ class TwitchBot(commands.Bot):
                 # Si une réponse est trouvée, l'envoyer
                 if response:
                     await message.channel.send(response)
-                elif self.response_manager.detect_game_question(message.content):
-                    game_name = self.twitch_api_manager.get_current_game(self.channel_name)
-                    await message.channel.send(f"Le jeu actuel est {game_name}." if game_name else "Je ne peux pas déterminer le jeu actuel.")
+
 
     @routines.routine(minutes=20)
     async def joke_task(self):
@@ -152,6 +178,7 @@ class TwitchBot(commands.Bot):
         if channel:
             await channel.send(joke)
 
+
 def main():
     """Fonction principale pour démarrer le bot Twitch."""
     token = config.OAUTH_TOKEN
@@ -159,6 +186,8 @@ def main():
     nick = config.BOT_NAME
     prefix = '!'
     channel = config.CHANNEL_NAME
+    channel_id = config.CHANNEL_ID
+    channel_secret = config.CHANNEL_SECRET
     wit_ai_token = config.WIT_AI_TOKEN
     # Choisir le détecteur d'intention (WitAI par défaut)
     intent_detector = WitAIManager(wit_ai_token)
@@ -166,7 +195,7 @@ def main():
     # openai_api_key = config.OPENAI_API_KEY
     # intent_detector = OpenAIIntentDetector(openai_api_key)
 
-    bot = TwitchBot(token=token, client_id=client_id, nick=nick, prefix=prefix, channel=channel, intent_detector=intent_detector)
+    bot = TwitchBot(token=token, client_id=client_id, channel_id=channel_id, channel_secret=channel_secret, nick=nick, prefix=prefix, channel=channel, intent_detector=intent_detector)
     bot.run()
 
 if __name__ == "__main__":
